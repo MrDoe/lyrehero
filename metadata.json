@@ -1,0 +1,7 @@
+{
+  "name": "Lyre Hero",
+  "description": "An interactive Lyre Harp tutor powered by Gemini. Generate songs and play along with real-time pitch detection.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
