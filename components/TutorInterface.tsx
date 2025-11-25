@@ -68,6 +68,8 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
   const isListeningRef = useRef(false);
   const isCalibratingRef = useRef(false);
   const configRef = useRef(config);
+  const lastCompletedNoteRef = useRef<string | null>(null);
+  const requireSilenceRef = useRef(false);
 
   // Sync refs
   useEffect(() => {
@@ -154,13 +156,25 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
     setNoteProgress(0);
     holdStartTimeRef.current = null;
 
+    // Store the completed note
+    const completedNote = song.notes[currentIndexRef.current].note;
+    lastCompletedNoteRef.current = completedNote;
+
+    // Check if next note is the same - if so, require silence before accepting it
+    const nextIndex = currentIndexRef.current + 1;
+    if (nextIndex < song.notes.length && song.notes[nextIndex].note === completedNote) {
+      requireSilenceRef.current = true;
+    } else {
+      requireSilenceRef.current = false;
+    }
+
     if (currentIndexRef.current < song.notes.length - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
       setIsFinished(true);
       stopListening();
     }
-  }, [song.notes.length, stopListening]);
+  }, [song.notes, stopListening]);
 
   const checkPitch = useCallback(() => {
     // Stop loop if not listening
@@ -197,22 +211,35 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
           
           // Only do note matching if not calibrating
           if (!isCalibratingRef.current && targetNote && result.note === targetNote.note) {
-            if (!holdStartTimeRef.current) {
-              holdStartTimeRef.current = Date.now();
-            }
+            // If we need silence before accepting this note (duplicate note scenario)
+            if (requireSilenceRef.current) {
+              // Don't start the hold timer, just stay in waiting state
+              holdStartTimeRef.current = null;
+              setNoteProgress(0);
+            } else {
+              // Normal note matching logic
+              if (!holdStartTimeRef.current) {
+                holdStartTimeRef.current = Date.now();
+              }
 
-            const elapsed = Date.now() - holdStartTimeRef.current;
-            const progress = Math.min(elapsed / holdDuration, 1);
-            setNoteProgress(progress);
+              const elapsed = Date.now() - holdStartTimeRef.current;
+              const progress = Math.min(elapsed / holdDuration, 1);
+              setNoteProgress(progress);
 
-            if (elapsed >= holdDuration) {
-              handleCorrectNote();
+              if (elapsed >= holdDuration) {
+                handleCorrectNote();
+              }
             }
           } else {
             holdStartTimeRef.current = null;
             setNoteProgress(0);
           }
         } else {
+          // No note detected - clear the "require silence" flag if we were waiting
+          if (requireSilenceRef.current) {
+            requireSilenceRef.current = false;
+          }
+          
           setDetectedNote('...');
           holdStartTimeRef.current = null;
           setNoteProgress(0);
@@ -229,6 +256,8 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
     setErrorMsg(null);
     setNoteProgress(0);
     holdStartTimeRef.current = null;
+    lastCompletedNoteRef.current = null;
+    requireSilenceRef.current = false;
     startListening();
   };
 
