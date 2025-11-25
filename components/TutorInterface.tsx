@@ -529,7 +529,13 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                             <Settings2 className="text-indigo-400" size={20} />
                             <h3 className="font-bold text-lg text-slate-200">Audio Debug & Config</h3>
                         </div>
-                        <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white">
+                        <button
+                          type="button"
+                          onClick={() => setShowSettings(false)}
+                          aria-label="Close settings"
+                          title="Close settings"
+                          className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400 hover:text-white"
+                        >
                             <X size={20}/>
                         </button>
                      </div>
@@ -685,11 +691,15 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                               <span className="text-slate-400">Volume Threshold</span>
                               <span className="font-mono text-indigo-400">{config.rmsThreshold.toFixed(4)}</span>
                            </div>
+                           <label htmlFor="rmsThreshold" className="sr-only">Volume Threshold</label>
                            <input 
+                              id="rmsThreshold"
                               type="range" min="0.0001" max="0.05" step="0.0001"
                               value={config.rmsThreshold}
                               onChange={(e) => setConfig({...config, rmsThreshold: parseFloat(e.target.value)})}
                               className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                              aria-label="Volume Threshold"
+                              title="Adjust volume threshold for note detection"
                            />
                         </div>
 
@@ -699,11 +709,15 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                               <span className="text-slate-400">Clarity Threshold</span>
                               <span className="font-mono text-indigo-400">{config.correlationThreshold.toFixed(2)}</span>
                            </div>
+                           <label htmlFor="correlationThreshold" className="sr-only">Clarity Threshold</label>
                            <input 
+                              id="correlationThreshold"
                               type="range" min="0.01" max="0.95" step="0.01"
                               value={config.correlationThreshold}
                               onChange={(e) => setConfig({...config, correlationThreshold: parseFloat(e.target.value)})}
                               className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                              aria-label="Clarity Threshold"
+                              title="Adjust clarity (correlation) threshold for pitch detection"
                            />
                         </div>
                      </div>
