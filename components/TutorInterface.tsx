@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Song } from '../types';
 import { AudioEngine } from '../services/audioEngine';
 import { Visualizer } from './Visualizer';
-import { ArrowLeft, Mic, RotateCcw, CheckCircle2, AlertCircle, Settings2, X, Wand2, Activity } from 'lucide-react';
+import { NoteCircle } from './NoteCircle';
+import { ArrowLeft, Mic, RotateCcw, AlertCircle, Settings2, X, Activity } from 'lucide-react';
 
 interface TutorInterfaceProps {
   song: Song;
@@ -449,24 +450,13 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                           ${!isActive && !isPast ? 'scale-75 sm:scale-90 opacity-60' : ''}
                         `}
                       >
-                         <div className={`
-                            w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center border-2 sm:border-4 shadow-lg sm:shadow-xl relative overflow-hidden
-                            ${isActive ? 'bg-indigo-600 border-indigo-400 shadow-indigo-500/50' : 'bg-slate-700 border-slate-600'}
-                            ${isPast ? 'bg-slate-800 border-green-900' : ''}
-                         `}>
-                            {isActive && noteProgress > 0 && (
-                                <div 
-                                    className="absolute inset-0 bg-white/20 transition-all ease-linear"
-                                    style={{ height: `${noteProgress * 100}%`, top: 'auto', bottom: 0 }}
-                                />
-                            )}
-                            
-                            {isPast ? (
-                                <CheckCircle2 size={24} className="sm:w-10 sm:h-10 text-green-500" />
-                            ) : (
-                                <span className="text-xl sm:text-3xl font-bold text-white">{noteObj.note}</span>
-                            )}
-                         </div>
+                         <NoteCircle
+                           note={noteObj.note}
+                           duration={noteObj.duration}
+                           isActive={isActive}
+                           isPast={isPast}
+                           noteProgress={isActive ? noteProgress : 0}
+                         />
 
                          <div className={`mt-2 sm:mt-3 font-serif text-xs sm:text-lg italic transition-all ${isActive ? 'text-indigo-300' : 'text-slate-500'}`}>
                             {noteObj.lyric || "-"}
