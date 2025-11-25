@@ -1,8 +1,8 @@
 export interface Note {
-  note: string; // e.g., "C4", "A3"
+  note: string; // e.g., "C4", "A3" - right hand melody
+  bassNote?: string; // e.g., "C3" - left hand bass (optional)
   lyric?: string;
   duration?: string; // "quarter", "half", etc. (optional usage)
-  hand?: 'right' | 'left'; // right = melody (default), left = bass accompaniment
 }
 
 export interface Song {

@@ -17,6 +17,11 @@
       .scrollbar-hide {
           -ms-overflow-style: none;
           scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+      }
+      /* Touch-friendly scrolling for mobile */
+      .touch-scroll {
+          -webkit-overflow-scrolling: touch;
       }
     </style>
   <script type="importmap">
@@ -30,7 +35,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-slate-900 text-slate-100 h-screen overflow-hidden">
     <div id="root" class="h-full w-full"></div>

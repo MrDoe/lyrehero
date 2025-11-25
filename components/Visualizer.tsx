@@ -113,12 +113,12 @@ export const Visualizer: React.FC<VisualizerProps> = ({ isListening, audioEngine
   }, [isListening, audioEngine]);
 
   return (
-    <div className="relative">
+    <div className="relative w-full min-h-[60px]">
       <canvas 
         ref={canvasRef} 
         width={300} 
         height={60} 
-        className="rounded-lg bg-slate-900/50 backdrop-blur-sm border border-slate-700"
+        className="w-full rounded-lg bg-slate-900/50 backdrop-blur-sm border border-slate-700"
       />
       <div className="absolute top-1 right-1 text-[10px] text-slate-500 font-mono">MIC</div>
     </div>

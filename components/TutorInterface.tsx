@@ -361,21 +361,21 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
   return (
     <div className="flex flex-col h-full w-full mx-auto animate-in fade-in zoom-in duration-300 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 shrink-0 bg-slate-900 z-20">
+      <div className="flex items-center justify-between p-3 sm:p-4 shrink-0 bg-slate-900 z-20 gap-2">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white flex items-center gap-2"
+          className="p-1 sm:p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white flex items-center gap-1 sm:gap-2 text-sm sm:text-base flex-shrink-0"
         >
-          <ArrowLeft size={20} />
-          <span>Back</span>
+          <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline">Back</span>
         </button>
-        <div className="text-center">
-          <h2 className="text-xl font-bold">{song.title}</h2>
+        <div className="text-center flex-1 min-w-0">
+          <h2 className="text-base sm:text-xl font-bold truncate">{song.title}</h2>
           <p className="text-slate-400 text-xs">
             {isFinished ? 'Complete' : `Note ${currentIndex + 1} / ${song.notes.length}`}
           </p>
         </div>
-        <div className="w-20" /> 
+        <div className="w-12 sm:w-20 flex-shrink-0" /> 
       </div>
 
       {/* Main Area */}
@@ -400,10 +400,11 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
           <div className="flex-1 flex flex-col min-h-0">
             
             {/* Song Timeline */}
-            <div className="flex-1 flex items-center relative w-full overflow-hidden bg-gradient-to-b from-slate-900 to-slate-800">
+            <div className="flex-1 flex flex-col items-center justify-center relative w-full overflow-y-hidden overflow-x-visible bg-gradient-to-b from-slate-900 to-slate-800">
                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-indigo-500/20 z-0"></div>
 
-               <div className="w-full overflow-x-auto scrollbar-hide flex items-center px-[50%] py-12 gap-8 snap-x">
+               {/* Right Hand (Melody) - Top Row */}
+               <div className="w-full overflow-x-auto scrollbar-hide touch-scroll flex items-center px-[50%] py-3 sm:py-4 gap-4 sm:gap-8 snap-x snap-mandatory">
                   {song.notes.map((noteObj, idx) => {
                     const isActive = idx === currentIndex;
                     const isPast = idx < currentIndex;
@@ -414,13 +415,13 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                         id={`note-${idx}`}
                         className={`
                           relative shrink-0 flex flex-col items-center justify-center transition-all duration-500 snap-center
-                          ${isActive ? 'scale-125 opacity-100 z-10' : ''}
-                          ${isPast ? 'scale-90 opacity-40 grayscale' : ''}
-                          ${!isActive && !isPast ? 'scale-90 opacity-60' : ''}
+                          ${isActive ? 'scale-100 sm:scale-125 opacity-100 z-10' : ''}
+                          ${isPast ? 'scale-75 sm:scale-90 opacity-40 grayscale' : ''}
+                          ${!isActive && !isPast ? 'scale-75 sm:scale-90 opacity-60' : ''}
                         `}
                       >
                          <div className={`
-                            w-24 h-24 rounded-full flex items-center justify-center border-4 shadow-xl relative overflow-hidden
+                            w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center border-2 sm:border-4 shadow-lg sm:shadow-xl relative overflow-hidden
                             ${isActive ? 'bg-indigo-600 border-indigo-400 shadow-indigo-500/50' : 'bg-slate-700 border-slate-600'}
                             ${isPast ? 'bg-slate-800 border-green-900' : ''}
                          `}>
@@ -432,30 +433,69 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                             )}
                             
                             {isPast ? (
-                                <CheckCircle2 size={40} className="text-green-500" />
+                                <CheckCircle2 size={24} className="sm:w-10 sm:h-10 text-green-500" />
                             ) : (
-                                <span className="text-3xl font-bold text-white">{noteObj.note}</span>
+                                <span className="text-xl sm:text-3xl font-bold text-white">{noteObj.note}</span>
                             )}
                          </div>
 
-                         <div className={`mt-4 font-serif text-lg italic transition-all ${isActive ? 'text-indigo-300' : 'text-slate-500'}`}>
+                         <div className={`mt-2 sm:mt-3 font-serif text-xs sm:text-lg italic transition-all ${isActive ? 'text-indigo-300' : 'text-slate-500'}`}>
                             {noteObj.lyric || "-"}
                          </div>
                          
                          {idx < song.notes.length - 1 && (
-                            <div className={`absolute top-12 left-full w-8 h-1 -z-10 ${isPast ? 'bg-green-900' : 'bg-slate-700'}`} />
+                            <div className={`absolute top-8 sm:top-12 left-full w-4 sm:w-8 h-1 -z-10 ${isPast ? 'bg-green-900' : 'bg-slate-700'}`} />
                          )}
                       </div>
                     );
                   })}
                </div>
+
+               {/* Left Hand (Bass) - Bottom Row - Only display if any bass notes exist */}
+               {song.notes.some(n => n.bassNote) && (
+                 <div className="w-full border-t border-slate-700/30">
+                   <div className="text-center py-1">
+                     <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-bold tracking-wider">Left Hand (Bass)</span>
+                   </div>
+                   <div className="w-full overflow-x-auto scrollbar-hide touch-scroll flex items-center px-[50%] py-2 sm:py-3 gap-4 sm:gap-8">
+                     {song.notes.map((noteObj, idx) => {
+                       const isActive = idx === currentIndex;
+                       
+                       return (
+                         <div 
+                           key={`bass-${idx}`}
+                           className={`
+                             relative shrink-0 flex flex-col items-center justify-center transition-all duration-500
+                             ${isActive ? 'opacity-100 scale-100' : 'opacity-40 scale-75'}
+                           `}
+                         >
+                           {noteObj.bassNote ? (
+                             <div className={`
+                               w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-2 shadow-md relative overflow-hidden
+                               ${isActive ? 'bg-purple-700/60 border-purple-400' : 'bg-slate-800/80 border-slate-700'}
+                             `}>
+                               <span className="text-sm sm:text-lg font-bold text-slate-200">{noteObj.bassNote}</span>
+                             </div>
+                           ) : (
+                             <div className="w-12 h-12 sm:w-16 sm:h-16" />
+                           )}
+                           
+                           {idx < song.notes.length - 1 && noteObj.bassNote && (
+                             <div className="absolute top-6 sm:top-8 left-full w-4 sm:w-8 h-1 -z-10 bg-slate-800/50" />
+                           )}
+                         </div>
+                       );
+                     })}
+                   </div>
+                 </div>
+               )}
             </div>
 
             {/* Controls & Feedback Panel */}
-            <div className="bg-slate-900 border-t border-slate-800 p-6 z-20 relative transition-all duration-300 ease-in-out">
+            <div className="bg-slate-900 border-t border-slate-800 p-3 sm:p-6 pb-20 sm:pb-6 z-20 relative transition-all duration-300 ease-in-out overflow-y-auto">
                 {showSettings && (
-                  <div className="max-w-xl mx-auto mb-6 bg-slate-800/90 backdrop-blur-md p-6 rounded-2xl border border-slate-700 animate-in slide-in-from-bottom-4 fade-in z-50 shadow-2xl">
-                     <div className="flex justify-between items-center mb-6">
+                  <div className="max-w-xl mx-auto mb-4 sm:mb-6 bg-slate-800/90 backdrop-blur-md p-4 sm:p-6 rounded-2xl border border-slate-700 animate-in slide-in-from-bottom-4 fade-in z-50 shadow-2xl max-h-[70vh] overflow-y-auto">
+                     <div className="flex justify-between items-center mb-6 sticky top-0 bg-slate-800/95 -m-4 sm:-m-6 p-4 sm:p-6 z-10">
                         <div className="flex items-center gap-2">
                             <Settings2 className="text-indigo-400" size={20} />
                             <h3 className="font-bold text-lg text-slate-200">Audio Debug & Config</h3>
@@ -465,6 +505,7 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                         </button>
                      </div>
                      
+                     <div className="space-y-6 pt-2">
                      {/* Live Meters */}
                      {isListening && (
                          <div className="grid grid-cols-2 gap-4 mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
@@ -637,24 +678,25 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                            />
                         </div>
                      </div>
+                     </div>
                   </div>
                 )}
 
-                <div className="max-w-xl mx-auto flex flex-col gap-6">
+                <div className="max-w-xl mx-auto flex flex-col gap-3 sm:gap-6">
                     
                     {/* Visualizer & Detection Display */}
-                    <div className="flex items-center gap-4 bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-lg">
-                        <div className="min-w-[80px]">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 bg-slate-800 p-3 sm:p-4 rounded-2xl border border-slate-700 shadow-lg">
+                        <div className="flex-shrink-0">
                             <div className="text-[10px] text-slate-500 uppercase font-bold mb-1 flex items-center gap-1">
                                 <Activity size={10} />
                                 Detected
                             </div>
-                            <div className={`text-3xl font-mono font-bold ${detectedNote === song.notes[currentIndex]?.note ? 'text-green-400 scale-110' : 'text-slate-200'} transition-all`}>
+                            <div className={`text-2xl sm:text-3xl font-mono font-bold ${detectedNote === song.notes[currentIndex]?.note ? 'text-green-400 scale-110' : 'text-slate-200'} transition-all`}>
                                 {detectedNote}
                             </div>
                         </div>
                         
-                        <div className="h-10 w-px bg-slate-700 mx-2"></div>
+                        <div className="hidden sm:block h-10 w-px bg-slate-700 mx-2"></div>
                         
                         <div className="flex-1">
                              <Visualizer isListening={isListening} audioEngine={audioEngineRef.current} />
@@ -668,7 +710,7 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({ song, onBack }) 
                           className={`flex items-center gap-2 text-xs uppercase font-bold tracking-wider px-4 py-2 rounded-full transition-all ${showSettings ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500 hover:text-slate-300'}`}
                        >
                           <Settings2 size={14} />
-                          <span>{showSettings ? 'Hide Debug & Settings' : 'Troubleshoot'}</span>
+                          <span>{showSettings ? 'Hide Configuration' : 'Configuration'}</span>
                        </button>
                     </div>
 
