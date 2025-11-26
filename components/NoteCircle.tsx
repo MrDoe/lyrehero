@@ -1,6 +1,6 @@
-import React from 'react';
-import { NoteDuration } from '../types';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from "lucide-react";
+import React from "react";
+import { NoteDuration } from "../types";
 
 interface NoteCircleProps {
   note: string;
@@ -13,109 +13,203 @@ interface NoteCircleProps {
 /**
  * Renders a music note with visual representation of its duration.
  * Uses standard music notation styling:
- * - Whole note (1): Hollow circle, no stem
- * - Half note (1/2): Hollow circle with stem
- * - Quarter note (1/4): Filled circle with stem (default)
- * - Eighth note (1/8): Filled circle with stem and flag
+ * - Whole note (1): Hollow oval, no stem
+ * - Half note (1/2): Hollow oval with stem
+ * - Quarter note (1/4): Filled oval with stem (default)
+ * - Eighth note (1/8): Filled oval with stem and flag
  */
 export const NoteCircle: React.FC<NoteCircleProps> = ({
   note,
-  duration = '1/4',
+  duration = "1/4",
   isActive,
   isPast,
   noteProgress,
 }) => {
-  const isHollow = duration === '1' || duration === '1/2';
-  const hasStem = duration !== '1';
-  const hasFlag = duration === '1/8';
+  const isHollow = duration === "1" || duration === "1/2";
+  const hasStem = duration !== "1";
+  const hasFlag = duration === "1/8";
 
-  // Base circle styles
-  const circleBaseClasses = `
-    w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center 
-    border-2 sm:border-4 shadow-lg sm:shadow-xl relative overflow-visible
-  `;
-
-  // Style variations based on state and duration
-  const getCircleStyles = () => {
-    if (isPast) {
-      return 'bg-slate-800 border-green-900';
-    }
-    if (isActive) {
-      if (isHollow) {
-        return 'bg-transparent border-indigo-400 shadow-indigo-500/50';
-      }
-      return 'bg-indigo-600 border-indigo-400 shadow-indigo-500/50';
-    }
-    if (isHollow) {
-      return 'bg-transparent border-slate-600';
-    }
-    return 'bg-slate-700 border-slate-600';
+  // Get colors based on state
+  const getColor = () => {
+    if (isPast) return "#22c55e"; // green-500
+    if (isActive) return "#818cf8"; // indigo-400
+    return "#cbd5e1"; // slate-300
   };
 
-  // Inner circle for hollow notes (to create the ring effect)
-  const getInnerCircleStyles = () => {
-    if (isPast) {
-      return 'bg-slate-800';
-    }
-    if (isActive) {
-      return 'bg-slate-900';
-    }
-    return 'bg-slate-800';
+  const getFillColor = () => {
+    if (isPast) return "#22c55e";
+    if (isActive) return "#818cf8";
+    return "#cbd5e1";
+  };
+
+  const color = getColor();
+  const fillColor = getFillColor();
+
+  // Render whole note (hollow oval, no stem)
+  const renderWholeNote = () => (
+    <svg
+      viewBox="0 0 120 100"
+      className="w-20 h-16 sm:w-28 sm:h-20 drop-shadow-lg"
+    >
+      {/* Whole note - hollow ellipse with thick border */}
+      <ellipse
+        cx="60"
+        cy="50"
+        rx="45"
+        ry="32"
+        fill="none"
+        stroke={color}
+        strokeWidth="8"
+        transform="rotate(-25 60 50)"
+      />
+      <ellipse
+        cx="60"
+        cy="50"
+        rx="30"
+        ry="20"
+        fill="rgb(15 23 42)"
+        transform="rotate(-25 60 50)"
+      />
+    </svg>
+  );
+
+  // Render half note (hollow oval with stem)
+  const renderHalfNote = () => (
+    <svg
+      viewBox="0 0 120 200"
+      className="w-20 h-32 sm:w-28 sm:h-40 drop-shadow-lg"
+    >
+      {/* Stem */}
+      <rect x="97" y="10" width="5" height="110" fill={color} />
+
+      {/* Note head - hollow ellipse */}
+      <ellipse
+        cx="60"
+        cy="120"
+        rx="45"
+        ry="32"
+        fill="none"
+        stroke={color}
+        strokeWidth="8"
+        transform="rotate(-25 60 120)"
+      />
+      <ellipse
+        cx="60"
+        cy="120"
+        rx="30"
+        ry="20"
+        fill="rgb(15 23 42)"
+        transform="rotate(-25 60 120)"
+      />
+    </svg>
+  );
+
+  // Render quarter note (filled oval with stem)
+  const renderQuarterNote = () => (
+    <svg
+      viewBox="0 0 120 200"
+      className="w-20 h-32 sm:w-28 sm:h-40 drop-shadow-lg"
+    >
+      {/* Stem */}
+      <rect x="97" y="10" width="5" height="110" fill={color} />
+
+      {/* Note head - filled ellipse */}
+      <ellipse
+        cx="60"
+        cy="120"
+        rx="45"
+        ry="32"
+        fill={fillColor}
+        transform="rotate(-25 60 120)"
+      />
+    </svg>
+  );
+
+  // Render eighth note (filled oval with stem and flag)
+  const renderEighthNote = () => (
+    <svg
+      viewBox="0 0 140 200"
+      className="w-24 h-32 sm:w-32 sm:h-40 drop-shadow-lg"
+    >
+      {/* Stem */}
+      <rect x="97" y="10" width="5" height="110" fill={color} />
+
+      {/* Flag - authentic curved flag shape */}
+      <path
+        d="M 104 10 Q 130 25, 135 50 Q 132 48, 125 42 Q 115 32, 108 25 Q 104 20, 104 15 Z"
+        fill={color}
+      />
+
+      {/* Note head - filled ellipse */}
+      <ellipse
+        cx="60"
+        cy="120"
+        rx="45"
+        ry="32"
+        fill={fillColor}
+        transform="rotate(-25 60 120)"
+      />
+    </svg>
+  );
+
+  const renderNote = () => {
+    if (duration === "1") return renderWholeNote();
+    if (duration === "1/2") return renderHalfNote();
+    if (duration === "1/8") return renderEighthNote();
+    return renderQuarterNote();
   };
 
   return (
-    <div className="relative flex flex-col items-center">
-      <div className={`${circleBaseClasses} ${getCircleStyles()}`}>
-        {/* Progress fill for active note */}
-        {isActive && noteProgress > 0 && (
-          <div
-            className="absolute inset-0 bg-white/20 transition-all ease-linear rounded-full"
-            style={{ height: `${noteProgress * 100}%`, top: 'auto', bottom: 0 }}
-          />
-        )}
+    <div className="relative flex items-center justify-center h-36 sm:h-44">
+      <div className="relative flex items-center justify-center">
+        {/* Musical note SVG */}
+        <div className="relative">
+          {renderNote()}
 
-        {/* Hollow effect for whole and half notes */}
-        {isHollow && !isPast && (
-          <div
-            className={`absolute inset-2 sm:inset-3 rounded-full ${getInnerCircleStyles()}`}
-          />
-        )}
-
-        {/* Note content */}
-        <div className="relative z-10">
-          {isPast ? (
-            <CheckCircle2 size={24} className="sm:w-10 sm:h-10 text-green-500" />
-          ) : (
-            <span className={`text-xl sm:text-3xl font-bold ${isHollow && !isActive ? 'text-slate-300' : 'text-white'}`}>
-              {note}
-            </span>
+          {/* Progress fill overlay for active notes */}
+          {isActive && noteProgress > 0 && (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div
+                className="absolute inset-0 bg-white/20 transition-all ease-linear"
+                style={{
+                  height: `${noteProgress * 100}%`,
+                  top: "auto",
+                  bottom: 0,
+                }}
+              />
+            </div>
           )}
+
+          {/* Note label overlay */}
+          <div className="absolute mt-7 inset-0 flex items-center justify-center">
+            {isPast ? (
+              <CheckCircle2
+                size={20}
+                className="sm:w-8 sm:h-8 text-green-500"
+              />
+            ) : (
+              <span
+                className={`text-lg font-bold ${
+                  isActive
+                    ? "text-white"
+                    : isHollow
+                    ? "text-slate-300"
+                    : "text-slate-900"
+                } drop-shadow-md`}
+              >
+                {note}
+              </span>
+            )}
+          </div>
         </div>
+
+        {/* Glow effect for active notes */}
+        {isActive && !isPast && (
+          <div className="absolute inset-0 -z-10">
+            <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full animate-pulse" />
+          </div>
+        )}
       </div>
-
-      {/* Stem - positioned to the right of the note */}
-      {hasStem && !isPast && (
-        <div className="absolute -right-1 sm:-right-2 top-1 sm:top-2">
-          <div 
-            className={`w-0.5 sm:w-1 h-10 sm:h-16 ${
-              isActive ? 'bg-indigo-400' : 'bg-slate-500'
-            }`}
-          />
-          
-          {/* Flag for eighth notes */}
-          {hasFlag && (
-            <svg 
-              className={`absolute -left-0.5 sm:-left-1 top-0 w-3 sm:w-5 h-6 sm:h-10 ${
-                isActive ? 'text-indigo-400' : 'text-slate-500'
-              }`}
-              viewBox="0 0 20 40"
-              fill="currentColor"
-            >
-              <path d="M2 0 Q 15 8, 18 20 Q 12 15, 2 18 Z" />
-            </svg>
-          )}
-        </div>
-      )}
     </div>
   );
 };
