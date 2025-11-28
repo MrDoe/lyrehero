@@ -56,6 +56,32 @@ export const LYRE_NOTES = [
 // All songs use diatonic notes only (no sharps/flats) for 19-string diatonic lyre harp
 export const PRESET_SONGS: Song[] = [
   {
+    title: "Tonleiter",
+    artist: "Traditional",
+    difficulty: "Easy",
+    notes: [
+      { note: "F3", lyric: "" },
+      { note: "G3", lyric: "" },
+      { note: "A3", lyric: "" },
+      { note: "B3", lyric: "" },
+      { note: "C4", lyric: "Do" },
+      { note: "D4", lyric: "Re" },
+      { note: "E4", lyric: "Mi" },
+      { note: "F4", lyric: "Fa" },
+      { note: "G4", lyric: "Sol" },
+      { note: "A4", lyric: "La" },
+      { note: "B4", lyric: "Ti" },
+      { note: "C5", lyric: "Do" },
+      { note: "D5", lyric: "" },
+      { note: "E5", lyric: "" },
+      { note: "F5", lyric: "" },
+      { note: "G5", lyric: "" },
+      { note: "A5", lyric: "" },
+      { note: "B5", lyric: "" },
+      { note: "C6", lyric: "" },
+    ],
+  },
+  {
     title: "Twinkle Twinkle Little Star",
     artist: "Traditional",
     difficulty: "Easy",

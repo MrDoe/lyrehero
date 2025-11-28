@@ -73,6 +73,9 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
   const [config, setConfig] = useState<AudioConfig>(loadConfig);
 
   const [noteProgress, setNoteProgress] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [showParticles, setShowParticles] = useState(false);
+  const [particlePosition, setParticlePosition] = useState({ x: 0, y: 0 });
 
   const audioEngineRef = useRef<AudioEngine | null>(null);
   const requestRef = useRef<number>(0);
@@ -174,6 +177,23 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
     lastNoteTimeRef.current = now;
     setNoteProgress(0);
     holdStartTimeRef.current = null;
+
+    // Increment streak
+    setStreak((prev) => prev + 1);
+
+    // Trigger particle effect at the active note position
+    const activeNoteEl = document.getElementById(
+      `note-${currentIndexRef.current}`
+    );
+    if (activeNoteEl) {
+      const rect = activeNoteEl.getBoundingClientRect();
+      setParticlePosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+      setShowParticles(true);
+      setTimeout(() => setShowParticles(false), 1000);
+    }
 
     // Store the completed note
     const completedNote = song.notes[currentIndexRef.current].note;
@@ -288,6 +308,7 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
     holdStartTimeRef.current = null;
     lastCompletedNoteRef.current = null;
     requireSilenceRef.current = false;
+    setStreak(0);
     startListening();
   };
 
@@ -421,7 +442,53 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
   }, [stopListening]);
 
   return (
-    <div className="flex flex-col h-full w-full mx-auto animate-in fade-in zoom-in duration-300 overflow-hidden">
+    <div className="flex flex-col h-full w-full mx-auto animate-in fade-in zoom-in duration-300 overflow-hidden relative">
+      {/* Particle Effects */}
+      {showParticles && (
+        <div
+          className="fixed z-50 pointer-events-none"
+          style={{
+            left: particlePosition.x,
+            top: particlePosition.y,
+          }}
+        >
+          {[...Array(12)].map((_, i) => {
+            const angle = (i * 30 * Math.PI) / 180;
+            const distance = 60 + Math.random() * 40;
+            const x = Math.cos(angle) * distance;
+            const y = Math.sin(angle) * distance;
+            const colors = [
+              "bg-yellow-400",
+              "bg-green-400",
+              "bg-blue-400",
+              "bg-purple-400",
+              "bg-pink-400",
+            ];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            return (
+              <div
+                key={i}
+                className={`absolute w-3 h-3 ${color} rounded-full animate-ping`}
+                style={{
+                  transform: `translate(${x}px, ${y}px)`,
+                  animationDuration: "0.6s",
+                  opacity: 0,
+                }}
+              />
+            );
+          })}
+          {/* Shockwave effect */}
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 w-20 h-20 border-4 border-green-400 rounded-full animate-ping"
+            style={{ animationDuration: "0.8s" }}
+          />
+          <div
+            className="absolute -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-green-400/30 rounded-full animate-ping"
+            style={{ animationDuration: "0.6s" }}
+          />
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between p-3 sm:p-4 shrink-0 bg-slate-900 z-20 gap-2">
         <button
@@ -441,7 +508,16 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
               : `Note ${currentIndex + 1} / ${song.notes.length}`}
           </p>
         </div>
-        <div className="w-12 sm:w-20 flex-shrink-0" />
+        <div className="w-12 sm:w-20 flex-shrink-0 flex items-center justify-center">
+          {streak > 0 && !isFinished && (
+            <div className="flex items-center gap-1 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 px-2 py-1 rounded-full border border-yellow-500/50 animate-in slide-in-from-right">
+              <span className="text-yellow-400 text-xs sm:text-sm">🔥</span>
+              <span className="font-bold text-yellow-400 text-xs sm:text-sm">
+                {streak}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Area */}
@@ -472,22 +548,37 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
               <div className="absolute left-1/2 top-0 bottom-0 w-px bg-indigo-500/20 z-0"></div>
 
               {/* Right Hand (Melody) - Top Row */}
-              <div className="w-full overflow-x-auto scrollbar-hide touch-scroll flex items-center px-[50%] py-3 sm:py-4 gap-4 sm:gap-8 snap-x snap-mandatory">
-                {song.notes.map((noteObj, idx) => {
-                  const isActive = idx === currentIndex;
-                  const isPast = idx < currentIndex;
+              <div className="relative w-full overflow-x-auto scrollbar-hide touch-scroll">
+                {/* Continuous Staff Lines - Full width with scrolling content */}
+                <div
+                  className="absolute top-0 left-0 flex items-center pointer-events-none z-0"
+                  style={{
+                    width: `calc(100% + ${song.notes.length * 8}rem)`,
+                    height: "100%",
+                  }}
+                >
+                  <div className="w-full h-28 sm:h-32 flex flex-col justify-center">
+                    {[0, 1, 2, 3, 4].map((lineIdx) => (
+                      <div
+                        key={lineIdx}
+                        className="w-full h-px bg-slate-400/50"
+                        style={{ marginBottom: lineIdx < 4 ? "11px" : "0" }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="relative z-10 flex items-center px-[50%] py-3 sm:py-4 gap-4 sm:gap-8 snap-x snap-mandatory">
+                  {song.notes.map((noteObj, idx) => {
+                    const isActive = idx === currentIndex;
+                    const isPast = idx < currentIndex;
 
-                  return (
-                    <div
-                      key={idx}
-                      id={`note-${idx}`}
-                      className={`
+                    return (
+                      <div
+                        key={idx}
+                        id={`note-${idx}`}
+                        className={`
                           relative shrink-0 flex flex-col items-center justify-center transition-all duration-500 snap-center
-                          ${
-                            isActive
-                              ? "scale-100 sm:scale-125 opacity-100 z-10"
-                              : ""
-                          }
+                          ${isActive ? "opacity-100 z-10" : ""}
                           ${
                             isPast
                               ? "scale-75 sm:scale-90 opacity-40 grayscale"
@@ -499,25 +590,27 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
                               : ""
                           }
                         `}
-                    >
-                      <NoteCircle
-                        note={noteObj.note}
-                        duration={noteObj.duration}
-                        isActive={isActive}
-                        isPast={isPast}
-                        noteProgress={isActive ? noteProgress : 0}
-                      />
-
-                      <div
-                        className={`mt-2 sm:mt-3 font-serif text-xs sm:text-lg italic transition-all ${
-                          isActive ? "text-indigo-300" : "text-slate-500"
-                        }`}
                       >
-                        {noteObj.lyric || "-"}
+                        <NoteCircle
+                          note={noteObj.note}
+                          duration={noteObj.duration}
+                          isActive={isActive}
+                          isPast={isPast}
+                          noteProgress={isActive ? noteProgress : 0}
+                          showStaffLines={false}
+                        />
+
+                        <div
+                          className={`mt-2 sm:mt-3 font-serif text-xs sm:text-lg italic transition-all ${
+                            isActive ? "text-indigo-300" : "text-slate-500"
+                          }`}
+                        >
+                          {noteObj.lyric || "-"}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Left Hand (Bass) - Bottom Row - Only display if any bass notes exist */}
