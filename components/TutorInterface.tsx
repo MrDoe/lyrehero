@@ -549,24 +549,6 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
 
               {/* Right Hand (Melody) - Top Row */}
               <div className="relative w-full overflow-x-auto scrollbar-hide touch-scroll">
-                {/* Continuous Staff Lines - Full width with scrolling content */}
-                <div
-                  className="absolute top-0 left-0 flex items-center pointer-events-none z-0"
-                  style={{
-                    width: `calc(100% + ${song.notes.length * 8}rem)`,
-                    height: "100%",
-                  }}
-                >
-                  <div className="w-full h-28 sm:h-32 flex flex-col justify-center">
-                    {[0, 1, 2, 3, 4].map((lineIdx) => (
-                      <div
-                        key={lineIdx}
-                        className="w-full h-px bg-slate-400/50"
-                        style={{ marginBottom: lineIdx < 4 ? "11px" : "0" }}
-                      />
-                    ))}
-                  </div>
-                </div>
                 <div className="relative z-10 flex items-center px-[50%] py-3 sm:py-4 gap-4 sm:gap-8 snap-x snap-mandatory">
                   {song.notes.map((noteObj, idx) => {
                     const isActive = idx === currentIndex;
@@ -597,7 +579,7 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
                           isActive={isActive}
                           isPast={isPast}
                           noteProgress={isActive ? noteProgress : 0}
-                          showStaffLines={false}
+                          showStaffLines={isActive}
                         />
 
                         <div
