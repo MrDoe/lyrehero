@@ -571,7 +571,7 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
                           isActive={isActive}
                           isPast={isPast}
                           noteProgress={isActive ? noteProgress : 0}
-                          showStaffLines={isActive}
+                          showStaffLines={true}
                         />
 
                         <div
