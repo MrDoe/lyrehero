@@ -2,6 +2,12 @@ import { CheckCircle2 } from "lucide-react";
 import React from "react";
 import { NoteDuration } from "../types";
 
+// Layout constants for consistent sizing across zoom levels
+const NOTE_CONTAINER_HEIGHT = { min: 144, preferred: '20vw', max: 176 }; // Container height in pixels/vw
+const NOTE_SVG_WIDTH = { min: 80, preferred: '12vw', max: 96 }; // SVG width in pixels/vw
+const NOTE_SVG_HEIGHT = { min: 112, preferred: '16vw', max: 128 }; // SVG height in pixels/vw
+const STAFF_LINE_EXTENSION = 1000; // How far staff lines extend beyond the viewBox (in viewBox units)
+
 interface NoteCircleProps {
   note: string;
   duration?: NoteDuration;
@@ -12,48 +18,55 @@ interface NoteCircleProps {
 }
 
 // Map note names to staff positions
-// Using treble clef with half-line spacing (each position is 0.5 line spacing)
-// Lines (even positions): E4=0, G4=2, B4=4, D5=6, F5=8
-// Spaces (odd positions): F4=1, A4=3, C5=5, E5=7
-// Below staff: D4=-2, C4=-4, B3=-6, A3=-8, etc.
+// Staff position system: B4 (middle line) = 0
+// Each position is one staff position (line or space)
+// Lines: E4=-4, G4=-2, B4=0, D5=2, F5=4
+// Spaces: F4=-3, A4=-1, C5=1, E5=3
 const getNotePosition = (noteStr: string): number => {
+  // Staff position system: B4 (middle line) = 0
+  // Each position is one staff position (line or space)
+  // Lines: E4=-4, G4=-2, B4=0, D5=2, F5=4
+  // Spaces: F4=-3, A4=-1, C5=1, E5=3
   const noteMap: Record<string, number> = {
-    // Below staff (half-line positions)
-    F3: -9,
-    G3: -8,
-    A3: -7,
-    B3: -6,
-    C4: -5, // One ledger line below
-    D4: -4, // Just below bottom line
-    E4: -2.8, // Bottom line
-    F4: -1.5, // 1st space
-    G4: -0.8, // 2nd line
-    A4: 0.1, // 2nd space
-    B4: 1, // 3rd line (middle)
-    C5: 2, // 3rd space
-    D5: 3, // 4th line
-    E5: 4, // 4th space
-    F5: 5, // Top line
-    G5: 6, // Just above top line
-    A5: 7, // One ledger line above
-    B5: 8,
-    C6: 9,
+    // Below staff
+    F3: -10,
+    G3: -9,
+    A3: -8,
+    B3: -7,
+    C4: -6, // One ledger line below
+    D4: -5,
+    E4: -4, // Bottom line
+    F4: -3, // 1st space
+    G4: -2, // 2nd line
+    A4: -1, // 2nd space
+    B4: 0,  // 3rd line (middle) - REFERENCE
+    C5: 1,  // 3rd space
+    D5: 2,  // 4th line
+    E5: 3,  // 4th space
+    F5: 4,  // Top line
+    G5: 5,  // Just above top line
+    A5: 6,  // One ledger line above
+    B5: 7,
+    C6: 8,
   };
-  return noteMap[noteStr] ?? 4; // Default to middle line
+  return noteMap[noteStr] ?? 0; // Default to middle line
 };
 
 // Check if a note needs ledger lines
+// Ledger lines are needed for notes outside the 5-line staff
+// Staff lines are at positions: -4 (E4), -2 (G4), 0 (B4), 2 (D5), 4 (F5)
+// Ledger lines below start at -6 (C4), above start at 6 (A5)
 const getLedgerLines = (position: number): number[] => {
   const lines: number[] = [];
-  if (position <= -4) {
-    // Below staff - add ledger lines at even positions from -4 down
-    for (let p = -5; p >= position; p -= 2) {
+  // Below staff: add ledger lines at even positions from -6 downward
+  if (position <= -6) {
+    for (let p = -6; p >= position; p -= 2) {
       lines.push(p);
     }
   }
-  if (position >= 10) {
-    // Above staff - add ledger lines at even positions from 10 up
-    for (let p = 10; p <= position; p += 2) {
+  // Above staff: add ledger lines at even positions from 6 upward
+  if (position >= 6) {
+    for (let p = 6; p <= position; p += 2) {
       lines.push(p);
     }
   }
@@ -96,52 +109,59 @@ export const NoteCircle: React.FC<NoteCircleProps> = ({
   const color = getColor();
   const fillColor = getFillColor();
 
-  // Staff configuration
+  // Staff configuration - all values are in viewBox units (not pixels)
+  // This ensures consistent positioning regardless of zoom or device resolution
   const staffLineColor = "rgba(148, 163, 184, 0.5)"; // slate-400/50
-  const lineSpacing = 6; // pixels per half-line position
-  const staffHeight = lineSpacing * 16; // Total staff height with extra space for ledger lines
+  
+  // Fixed viewBox dimensions for consistent scaling
+  const viewBoxWidth = 80;
+  const viewBoxHeight = 100;
+  
+  // Line spacing in viewBox units - calculated relative to viewBox height
+  const lineSpacing = 8; // viewBox units per staff position
+  
+  // B4 (middle line) is at position 0, which should be at the center of the viewBox
+  const staffCenterY = viewBoxHeight / 2;
 
-  // The middle line of the staff (B4, position 4) should be at the center
-  // Staff lines are at positions 0, 2, 4, 6, 8 (E4, G4, B4, D5, F5)
-  const middleLinePosition = 4; // B4 is the middle line
-  const staffCenterY = staffHeight / 2;
+  // Note positioning - calculate Y based on position (negative position = lower on staff = higher Y)
+  const noteY = staffCenterY - position * lineSpacing;
 
-  // Note positioning - calculate Y based on position relative to middle line
-  const noteY = staffCenterY - (position - middleLinePosition) * lineSpacing;
-
-  // Note head dimensions
+  // Note head dimensions in viewBox units
   const noteHeadRx = 9;
-  const noteHeadRy = 5.5;
-  const stemHeight = 40;
+  const noteHeadRy = 6;
+  const stemHeight = 42;
   const stemX = noteHeadRx - 2;
 
-  // Determine stem direction based on position (stems go down for notes above middle line)
-  const stemUp = position < 4;
+  // Determine stem direction based on position (stems go up for notes below B4, down for notes at or above B4)
+  const stemUp = position < 0;
 
   return (
-    <div className="relative flex items-center justify-center h-36 sm:h-44">
+    <div 
+      className="relative flex items-center justify-center" 
+      style={{ height: `clamp(${NOTE_CONTAINER_HEIGHT.min}px, ${NOTE_CONTAINER_HEIGHT.preferred}, ${NOTE_CONTAINER_HEIGHT.max}px)` }}
+    >
       <div className="relative flex items-center justify-center">
-        {/* Staff and Note SVG */}
+        {/* Staff and Note SVG - uses fixed viewBox for consistent positioning */}
         <svg
-          viewBox={`0 0 80 ${staffHeight}`}
-          className="w-20 h-28 sm:w-24 sm:h-32 drop-shadow-lg"
-          style={{ overflow: "visible" }}
+          viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+          className="drop-shadow-lg"
+          style={{ 
+            width: `clamp(${NOTE_SVG_WIDTH.min}px, ${NOTE_SVG_WIDTH.preferred}, ${NOTE_SVG_WIDTH.max}px)`, 
+            height: `clamp(${NOTE_SVG_HEIGHT.min}px, ${NOTE_SVG_HEIGHT.preferred}, ${NOTE_SVG_HEIGHT.max}px)`,
+            overflow: 'visible' 
+          }}
+          preserveAspectRatio="xMidYMid meet"
         >
-          {/* Staff lines (5 lines) - only if showStaffLines is true */}
+          {/* Staff lines (5 lines) - extended beyond viewBox for continuous staff appearance */}
+          {/* Lines are at staff positions: E4=-4, G4=-2, B4=0, D5=2, F5=4 */}
           {showStaffLines &&
-            [0, 2, 4, 6, 8].map((linePos) => (
+            [-4, -2, 0, 2, 4].map((linePos) => (
               <line
                 key={linePos}
-                x1="0"
-                y1={
-                  staffCenterY -
-                  ((linePos - middleLinePosition) * lineSpacing) / 2
-                }
-                x2="80"
-                y2={
-                  staffCenterY -
-                  ((linePos - middleLinePosition) * lineSpacing) / 2
-                }
+                x1={-STAFF_LINE_EXTENSION}
+                y1={staffCenterY - linePos * lineSpacing}
+                x2={STAFF_LINE_EXTENSION}
+                y2={staffCenterY - linePos * lineSpacing}
                 stroke={staffLineColor}
                 strokeWidth="1"
               />
@@ -152,9 +172,9 @@ export const NoteCircle: React.FC<NoteCircleProps> = ({
             <line
               key={`ledger-${linePos}`}
               x1="25"
-              y1={staffCenterY - (linePos - middleLinePosition) * lineSpacing}
+              y1={staffCenterY - linePos * lineSpacing}
               x2="55"
-              y2={staffCenterY - (linePos - middleLinePosition) * lineSpacing}
+              y2={staffCenterY - linePos * lineSpacing}
               stroke={staffLineColor}
               strokeWidth="1"
             />
