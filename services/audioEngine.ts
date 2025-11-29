@@ -1,4 +1,8 @@
-import { NOTE_FREQUENCIES } from "../constants";
+import { NOTE_FREQUENCIES, LYRE_NOTES } from "../constants";
+
+// Lyre harp frequency range: F3 (174.61 Hz) to C6 (1046.5 Hz)
+const LYRE_MIN_FREQ = 165; // Slightly below F3 to allow for tuning variations
+const LYRE_MAX_FREQ = 1100; // Slightly above C6
 
 export class AudioEngine {
   private audioContext: AudioContext | null = null;
@@ -6,8 +10,10 @@ export class AudioEngine {
   private mediaStreamSource: MediaStreamAudioSourceNode | null = null;
   private gainNode: GainNode | null = null;
   private highPassFilter: BiquadFilterNode | null = null;
+  private lowPassFilter: BiquadFilterNode | null = null; // Added for band-pass filtering
   private stream: MediaStream | null = null;
   private buffer: Float32Array = new Float32Array(0);
+  private frequencyBuffer: Float32Array = new Float32Array(0); // For spectral analysis
   private isListening: boolean = false;
 
   // Configurable thresholds
@@ -24,6 +30,11 @@ export class AudioEngine {
   private noiseFloor: number = 0.001;
   private noiseFloorSamples: number[] = [];
   private readonly NOISE_FLOOR_WINDOW = 50;
+
+  // Lyre-specific detection settings
+  private readonly HARMONIC_TOLERANCE = 0.08; // 8% tolerance for harmonic detection
+  private readonly SPECTRAL_FLATNESS_THRESHOLD = 0.3; // Below this = tonal sound
+  private readonly CENTS_TOLERANCE = 50; // Accept notes within 50 cents (half semitone)
 
   async start(): Promise<void> {
     if (this.audioContext?.state === "running") return;
@@ -53,12 +64,21 @@ export class AudioEngine {
       this.analyser.fftSize = 8192; // Large FFT for excellent low frequency resolution
       this.analyser.smoothingTimeConstant = 0; // No smoothing for accurate pitch detection
       this.buffer = new Float32Array(this.analyser.fftSize);
+      this.frequencyBuffer = new Float32Array(this.analyser.frequencyBinCount);
 
       // Create High-Pass Filter to remove low-frequency noise (rumble, HVAC, etc.)
+      // Set just below lyre harp range to remove non-musical sounds
       this.highPassFilter = this.audioContext.createBiquadFilter();
       this.highPassFilter.type = "highpass";
-      this.highPassFilter.frequency.value = 80; // Cut frequencies below 80Hz
+      this.highPassFilter.frequency.value = 150; // Cut frequencies below lyre range
       this.highPassFilter.Q.value = 0.7; // Gentle rolloff
+
+      // Create Low-Pass Filter to remove high-frequency noise (hiss, electronics)
+      // This creates a band-pass effect focused on lyre harp frequencies
+      this.lowPassFilter = this.audioContext.createBiquadFilter();
+      this.lowPassFilter.type = "lowpass";
+      this.lowPassFilter.frequency.value = 1200; // Cut frequencies above lyre range
+      this.lowPassFilter.Q.value = 0.7; // Gentle rolloff
 
       // Create Gain Node to boost quiet microphones
       this.gainNode = this.audioContext.createGain();
@@ -68,9 +88,11 @@ export class AudioEngine {
         this.stream
       );
 
-      // Signal path: Source -> HighPass -> Gain -> Analyser
+      // Signal path: Source -> HighPass -> LowPass -> Gain -> Analyser
+      // This creates a band-pass filter effect for lyre harp frequencies
       this.mediaStreamSource.connect(this.highPassFilter);
-      this.highPassFilter.connect(this.gainNode);
+      this.highPassFilter.connect(this.lowPassFilter);
+      this.lowPassFilter.connect(this.gainNode);
       this.gainNode.connect(this.analyser);
 
       this.isListening = true;
@@ -84,6 +106,7 @@ export class AudioEngine {
   stop(): void {
     if (this.mediaStreamSource) this.mediaStreamSource.disconnect();
     if (this.highPassFilter) this.highPassFilter.disconnect();
+    if (this.lowPassFilter) this.lowPassFilter.disconnect();
     if (this.gainNode) this.gainNode.disconnect();
 
     if (this.stream) {
@@ -99,6 +122,7 @@ export class AudioEngine {
     this.analyser = null;
     this.mediaStreamSource = null;
     this.highPassFilter = null;
+    this.lowPassFilter = null;
     this.gainNode = null;
     this.isListening = false;
 
@@ -138,8 +162,12 @@ export class AudioEngine {
     if (this.buffer.length !== this.analyser.fftSize) {
       this.buffer = new Float32Array(this.analyser.fftSize);
     }
+    if (this.frequencyBuffer.length !== this.analyser.frequencyBinCount) {
+      this.frequencyBuffer = new Float32Array(this.analyser.frequencyBinCount);
+    }
 
     this.analyser.getFloatTimeDomainData(this.buffer as any);
+    this.analyser.getFloatFrequencyData(this.frequencyBuffer as any);
 
     // 1. Calculate RMS (Volume)
     let rms = 0;
@@ -156,25 +184,51 @@ export class AudioEngine {
     const zcr = this.calculateZeroCrossingRate(this.buffer);
     const isLikelyNoise = zcr > 0.3; // High ZCR suggests noise, not pitched signal
 
-    // 4. Perform Pitch Detection
+    // 4. Calculate spectral flatness (tonality measure)
+    // Low flatness = tonal sound (music), High flatness = noise
+    const spectralFlatness = this.calculateSpectralFlatness(
+      this.frequencyBuffer,
+      this.audioContext.sampleRate
+    );
+    const isTonalSound = spectralFlatness < this.SPECTRAL_FLATNESS_THRESHOLD;
+
+    // 5. Perform Pitch Detection
     const result = this.detectPitchNSDF(
       this.buffer,
       this.audioContext.sampleRate
     );
 
-    // 5. Determine raw detected note (before temporal smoothing)
+    // 6. Check for harmonic content (musical notes have harmonics)
+    const hasHarmonics = this.checkHarmonicContent(
+      this.frequencyBuffer,
+      result.frequency,
+      this.audioContext.sampleRate
+    );
+
+    // 7. Determine raw detected note (before temporal smoothing)
     let rawNote = "";
     const effectiveThreshold = Math.max(this.rmsThreshold, this.noiseFloor * 2);
+
+    // Enhanced detection criteria for lyre harp:
+    // - Must pass volume threshold
+    // - Must have good pitch clarity
+    // - Must not have excessive zero-crossings (noise indicator)
+    // - Must be tonal (low spectral flatness) OR have harmonic content
+    // - Frequency must be in lyre harp range
+    const isValidLyreFrequency =
+      result.frequency >= LYRE_MIN_FREQ && result.frequency <= LYRE_MAX_FREQ;
 
     if (
       rms > effectiveThreshold &&
       result.clarity > this.correlationThreshold &&
-      !isLikelyNoise
+      !isLikelyNoise &&
+      isValidLyreFrequency &&
+      (isTonalSound || hasHarmonics)
     ) {
-      rawNote = this.frequencyToNote(result.frequency);
+      rawNote = this.frequencyToLyreNote(result.frequency);
     }
 
-    // 6. Apply temporal smoothing - only accept notes that are consistent
+    // 8. Apply temporal smoothing - only accept notes that are consistent
     this.noteHistory.push(rawNote);
     this.frequencyHistory.push(result.frequency);
     if (this.noteHistory.length > this.HISTORY_SIZE) {
@@ -192,6 +246,9 @@ export class AudioEngine {
       freq: result.frequency.toFixed(1),
       clarity: result.clarity.toFixed(3),
       zcr: zcr.toFixed(3),
+      spectralFlatness: spectralFlatness.toFixed(3),
+      hasHarmonics,
+      isTonal: isTonalSound,
       rawNote,
       stableNote,
     });
@@ -273,6 +330,141 @@ export class AudioEngine {
     if (this.frequencyHistory.length === 0) return 0;
     const sorted = [...this.frequencyHistory].sort((a, b) => a - b);
     return sorted[Math.floor(sorted.length / 2)];
+  }
+
+  /**
+   * Calculate spectral flatness (Wiener entropy)
+   * Low values indicate tonal sounds (musical notes)
+   * High values indicate noise-like sounds
+   */
+  private calculateSpectralFlatness(
+    frequencyData: Float32Array,
+    sampleRate: number
+  ): number {
+    // Focus on lyre harp frequency range for better accuracy
+    const binWidth = sampleRate / (frequencyData.length * 2);
+    const minBin = Math.floor(LYRE_MIN_FREQ / binWidth);
+    const maxBin = Math.min(
+      Math.ceil(LYRE_MAX_FREQ / binWidth),
+      frequencyData.length - 1
+    );
+
+    if (maxBin <= minBin) return 1.0; // Return high flatness if range is invalid
+
+    // Convert dB to linear power values
+    const powers: number[] = [];
+    for (let i = minBin; i <= maxBin; i++) {
+      // frequencyData is in dB, convert to linear power
+      const linearPower = Math.pow(10, frequencyData[i] / 10);
+      if (linearPower > 0) {
+        powers.push(linearPower);
+      }
+    }
+
+    if (powers.length === 0) return 1.0;
+
+    // Calculate geometric mean and arithmetic mean
+    let logSum = 0;
+    let arithmeticSum = 0;
+    for (const power of powers) {
+      logSum += Math.log(power + 1e-10); // Add small value to avoid log(0)
+      arithmeticSum += power;
+    }
+
+    const geometricMean = Math.exp(logSum / powers.length);
+    const arithmeticMean = arithmeticSum / powers.length;
+
+    // Spectral flatness is the ratio of geometric to arithmetic mean
+    // Value between 0 (tonal) and 1 (noise-like)
+    if (arithmeticMean <= 0) return 1.0;
+    return Math.min(1.0, geometricMean / arithmeticMean);
+  }
+
+  /**
+   * Check if the detected fundamental frequency has harmonics present
+   * Musical notes from stringed instruments have clear harmonic series
+   */
+  private checkHarmonicContent(
+    frequencyData: Float32Array,
+    fundamentalFreq: number,
+    sampleRate: number
+  ): boolean {
+    if (fundamentalFreq <= 0) return false;
+
+    const binWidth = sampleRate / (frequencyData.length * 2);
+    const fundamentalBin = Math.round(fundamentalFreq / binWidth);
+
+    // Get the power at the fundamental frequency
+    if (fundamentalBin >= frequencyData.length) return false;
+    const fundamentalPower = frequencyData[fundamentalBin];
+
+    // Check for the 2nd and 3rd harmonics (most prominent in stringed instruments)
+    let harmonicsFound = 0;
+    const harmonicsToCheck = [2, 3]; // 2nd and 3rd harmonics
+
+    for (const harmonic of harmonicsToCheck) {
+      const harmonicFreq = fundamentalFreq * harmonic;
+      if (harmonicFreq > LYRE_MAX_FREQ * 2) continue; // Allow harmonics above lyre range
+
+      const harmonicBin = Math.round(harmonicFreq / binWidth);
+      if (harmonicBin >= frequencyData.length) continue;
+
+      // Check if there's significant energy at the harmonic frequency
+      // Allow some tolerance in frequency (bins around the expected harmonic)
+      let maxHarmonicPower = -Infinity;
+      const searchRange = Math.max(1, Math.round(harmonicBin * this.HARMONIC_TOLERANCE));
+      for (
+        let b = Math.max(0, harmonicBin - searchRange);
+        b <= Math.min(frequencyData.length - 1, harmonicBin + searchRange);
+        b++
+      ) {
+        if (frequencyData[b] > maxHarmonicPower) {
+          maxHarmonicPower = frequencyData[b];
+        }
+      }
+
+      // Harmonic should be present (within 20dB of fundamental is typical for strings)
+      if (maxHarmonicPower > fundamentalPower - 25) {
+        harmonicsFound++;
+      }
+    }
+
+    // Require at least one harmonic to confirm it's a musical note
+    return harmonicsFound >= 1;
+  }
+
+  /**
+   * Convert frequency to a lyre harp note using cents-based tolerance
+   * Only returns valid lyre notes (F3 to C6, diatonic)
+   * Uses musical cents for more accurate pitch matching
+   */
+  private frequencyToLyreNote(frequency: number): string {
+    if (frequency < LYRE_MIN_FREQ || frequency > LYRE_MAX_FREQ) return "";
+
+    let minCents = Infinity;
+    let bestNote = "";
+
+    // Only check against valid lyre notes
+    for (const noteName of LYRE_NOTES) {
+      const noteFreq = NOTE_FREQUENCIES[noteName];
+      if (!noteFreq) continue;
+
+      // Calculate difference in cents (1200 cents = 1 octave)
+      // cents = 1200 * log2(f1/f2)
+      const cents = Math.abs(1200 * Math.log2(frequency / noteFreq));
+
+      if (cents < minCents) {
+        minCents = cents;
+        bestNote = noteName;
+      }
+    }
+
+    // Only accept if within tolerance (50 cents = half semitone)
+    if (minCents > this.CENTS_TOLERANCE) {
+      return "";
+    }
+
+    return bestNote;
   }
 
   /**
@@ -363,32 +555,5 @@ export class AudioEngine {
       frequency: clampedFreq,
       clarity: Math.max(0, Math.min(1, bestPeak.value)),
     };
-  }
-
-  private frequencyToNote(frequency: number): string {
-    if (frequency <= 0 || frequency < 50 || frequency > 1300) return "";
-
-    let minDiff = Infinity;
-    let bestNote = "";
-
-    for (const [note, freq] of Object.entries(NOTE_FREQUENCIES)) {
-      const diff = Math.abs(freq - frequency);
-      if (diff < minDiff) {
-        minDiff = diff;
-        bestNote = note;
-      }
-    }
-
-    // Use a percentage-based tolerance instead of fixed Hz
-    // This is more robust across different frequency ranges
-    const bestNoteFreq = NOTE_FREQUENCIES[bestNote] || 440;
-    const percentDiff = (minDiff / bestNoteFreq) * 100;
-
-    // Allow up to 10% frequency deviation - generous for real instruments
-    if (percentDiff > 10) {
-      return "";
-    }
-
-    return bestNote;
   }
 }
