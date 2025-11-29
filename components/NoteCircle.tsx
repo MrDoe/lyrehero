@@ -2,6 +2,12 @@ import { CheckCircle2 } from "lucide-react";
 import React from "react";
 import { NoteDuration } from "../types";
 
+// Layout constants for consistent sizing across zoom levels
+const NOTE_CONTAINER_HEIGHT = { min: 144, preferred: '20vw', max: 176 }; // Container height in pixels/vw
+const NOTE_SVG_WIDTH = { min: 80, preferred: '12vw', max: 96 }; // SVG width in pixels/vw
+const NOTE_SVG_HEIGHT = { min: 112, preferred: '16vw', max: 128 }; // SVG height in pixels/vw
+const STAFF_LINE_EXTENSION = 1000; // How far staff lines extend beyond the viewBox (in viewBox units)
+
 interface NoteCircleProps {
   note: string;
   duration?: NoteDuration;
@@ -12,10 +18,10 @@ interface NoteCircleProps {
 }
 
 // Map note names to staff positions
-// Using treble clef with half-line spacing (each position is 0.5 line spacing)
-// Lines (even positions): E4=0, G4=2, B4=4, D5=6, F5=8
-// Spaces (odd positions): F4=1, A4=3, C5=5, E5=7
-// Below staff: D4=-2, C4=-4, B3=-6, A3=-8, etc.
+// Staff position system: B4 (middle line) = 0
+// Each position is one staff position (line or space)
+// Lines: E4=-4, G4=-2, B4=0, D5=2, F5=4
+// Spaces: F4=-3, A4=-1, C5=1, E5=3
 const getNotePosition = (noteStr: string): number => {
   // Staff position system: B4 (middle line) = 0
   // Each position is one staff position (line or space)
@@ -47,19 +53,19 @@ const getNotePosition = (noteStr: string): number => {
 };
 
 // Check if a note needs ledger lines
+// Ledger lines are needed for notes outside the 5-line staff
+// Staff lines are at positions: -4 (E4), -2 (G4), 0 (B4), 2 (D5), 4 (F5)
+// Ledger lines below start at -6 (C4), above start at 6 (A5)
 const getLedgerLines = (position: number): number[] => {
   const lines: number[] = [];
-  // Ledger lines are at even positions (where staff lines would be)
-  // Below staff: positions -6, -8, -10, etc.
-  if (position <= -5) {
-    // Start at -6 (first ledger line below, for C4)
+  // Below staff: add ledger lines at even positions from -6 downward
+  if (position <= -6) {
     for (let p = -6; p >= position; p -= 2) {
       lines.push(p);
     }
   }
-  // Above staff: positions 6, 8, 10, etc.
-  if (position >= 5) {
-    // Start at 6 (first ledger line above, for A5)
+  // Above staff: add ledger lines at even positions from 6 upward
+  if (position >= 6) {
     for (let p = 6; p <= position; p += 2) {
       lines.push(p);
     }
@@ -130,15 +136,18 @@ export const NoteCircle: React.FC<NoteCircleProps> = ({
   const stemUp = position < 0;
 
   return (
-    <div className="relative flex items-center justify-center" style={{ height: 'clamp(144px, 20vw, 176px)' }}>
+    <div 
+      className="relative flex items-center justify-center" 
+      style={{ height: `clamp(${NOTE_CONTAINER_HEIGHT.min}px, ${NOTE_CONTAINER_HEIGHT.preferred}, ${NOTE_CONTAINER_HEIGHT.max}px)` }}
+    >
       <div className="relative flex items-center justify-center">
         {/* Staff and Note SVG - uses fixed viewBox for consistent positioning */}
         <svg
           viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
           className="drop-shadow-lg"
           style={{ 
-            width: 'clamp(80px, 12vw, 96px)', 
-            height: 'clamp(112px, 16vw, 128px)',
+            width: `clamp(${NOTE_SVG_WIDTH.min}px, ${NOTE_SVG_WIDTH.preferred}, ${NOTE_SVG_WIDTH.max}px)`, 
+            height: `clamp(${NOTE_SVG_HEIGHT.min}px, ${NOTE_SVG_HEIGHT.preferred}, ${NOTE_SVG_HEIGHT.max}px)`,
             overflow: 'visible' 
           }}
           preserveAspectRatio="xMidYMid meet"
@@ -149,9 +158,9 @@ export const NoteCircle: React.FC<NoteCircleProps> = ({
             [-4, -2, 0, 2, 4].map((linePos) => (
               <line
                 key={linePos}
-                x1={-1000}
+                x1={-STAFF_LINE_EXTENSION}
                 y1={staffCenterY - linePos * lineSpacing}
-                x2={1000}
+                x2={STAFF_LINE_EXTENSION}
                 y2={staffCenterY - linePos * lineSpacing}
                 stroke={staffLineColor}
                 strokeWidth="1"
