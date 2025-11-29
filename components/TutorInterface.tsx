@@ -561,16 +561,8 @@ export const TutorInterface: React.FC<TutorInterfaceProps> = ({
                         className={`
                           relative shrink-0 flex flex-col items-center justify-center transition-all duration-500 snap-center
                           ${isActive ? "opacity-100 z-10" : ""}
-                          ${
-                            isPast
-                              ? "scale-75 sm:scale-90 opacity-40 grayscale"
-                              : ""
-                          }
-                          ${
-                            !isActive && !isPast
-                              ? "scale-75 sm:scale-90 opacity-60"
-                              : ""
-                          }
+                          ${isPast ? "opacity-40 grayscale" : ""}
+                          ${!isActive && !isPast ? "opacity-60" : ""}
                         `}
                       >
                         <NoteCircle
