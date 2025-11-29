@@ -35,6 +35,8 @@ export class AudioEngine {
   private readonly HARMONIC_TOLERANCE = 0.08; // 8% tolerance for harmonic detection
   private readonly SPECTRAL_FLATNESS_THRESHOLD = 0.3; // Below this = tonal sound
   private readonly CENTS_TOLERANCE = 50; // Accept notes within 50 cents (half semitone)
+  private readonly HARMONIC_POWER_THRESHOLD_DB = 25; // Max dB difference from fundamental for harmonic
+  private readonly EPSILON_LOG_SAFE = 1e-10; // Small value to avoid log(0)
 
   async start(): Promise<void> {
     if (this.audioContext?.state === "running") return;
@@ -367,7 +369,7 @@ export class AudioEngine {
     let logSum = 0;
     let arithmeticSum = 0;
     for (const power of powers) {
-      logSum += Math.log(power + 1e-10); // Add small value to avoid log(0)
+      logSum += Math.log(power + this.EPSILON_LOG_SAFE); // Add small value to avoid log(0)
       arithmeticSum += power;
     }
 
@@ -423,8 +425,8 @@ export class AudioEngine {
         }
       }
 
-      // Harmonic should be present (within 20dB of fundamental is typical for strings)
-      if (maxHarmonicPower > fundamentalPower - 25) {
+      // Harmonic should be present (within threshold of fundamental is typical for strings)
+      if (maxHarmonicPower > fundamentalPower - this.HARMONIC_POWER_THRESHOLD_DB) {
         harmonicsFound++;
       }
     }
@@ -475,8 +477,9 @@ export class AudioEngine {
     buffer: Float32Array,
     sampleRate: number
   ): { frequency: number; clarity: number } {
-    const MIN_FREQ = 100; // Lyre harp lowest note ~130Hz, add margin
-    const MAX_FREQ = 1200;
+    // Use lyre frequency range with some margin for detection
+    const MIN_FREQ = LYRE_MIN_FREQ * 0.8; // Allow slightly below range for detection margin
+    const MAX_FREQ = LYRE_MAX_FREQ * 1.1; // Allow slightly above range for detection margin
 
     const minPeriod = Math.floor(sampleRate / MAX_FREQ);
     const maxPeriod = Math.floor(sampleRate / MIN_FREQ);
